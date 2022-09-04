@@ -31,7 +31,9 @@ mongoose.connect("mongodb://localhost:27017/userDB",{useNewUrlParser:true});
 // mongoose.set("useCreateIndex",true);
 const userSchema=new mongoose.Schema({
     email:String,
-    password:String
+    password:String,
+    googleId:String,
+    Secret:String
 });
 
 
@@ -57,6 +59,7 @@ passport.use(new GoogleStrategy({
     userProfileURL:"https://www.googleapis.com/oauth2/v3/userinfo"
     },
     function(accessToken, refreshToken, profile, cb) {
+        // console.log(profile);
         User.findOrCreate({ googleId: profile.id }, function (err, user) {
             return cb(err, user);
         });
@@ -82,11 +85,56 @@ app.get("/login",function(req,res){
 
 app.get("/secrets",function (req,res) {
     if (req.isAuthenticated()){
-        res.render("secrets");
+        User.find({"Secret":{$ne:null}},function (err,result) {
+            if(err){
+                console.log(err);
+            }
+            else{
+                // console.log(result);
+                res.render("secrets",{userSecret:result});
+            }
+        })
     }
     else{
         res.redirect("/login");
     }
+    
+});
+
+app.get("/submit",function (req,res) {
+    if (req.isAuthenticated()){
+        res.render("submit");
+    }
+    else{
+        res.redirect("/login");
+    }
+    // User.find({"Secret":{$ne:null}},function (err,result) {
+    //     if(err){
+    //         console.log(err);
+    //     }
+    //     else{
+    //         res.redirect("/secrets");
+    //     }
+    // })
+});
+
+app.post("/submit",function (req,res) {
+    const submittedSecret=req.body.secret
+    console.log(req.user);
+    User.findById({_id:req.user._id},function (err,result) {
+        if(err){
+            console.log(err);
+        }
+        else{
+            if(result){
+                result.Secret=submittedSecret
+                result.save(function () {
+                    res.redirect("/secrets");
+                });
+                
+            }
+        }
+    })
 });
 
 app.get('/logout', function(req, res){
